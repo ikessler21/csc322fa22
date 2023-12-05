@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+
+<html>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        //GLOBAL VARIABLES
+        const sceneWidth = 500, sceneHeight = 500;
+        var scene, camera, renderer;
+        var origPositions; //stores positions of all elements for motion parallax
+        var parallaxFactor = 2; //changes overall strength of effect
+
+        //ELEMENTS
+        var grassBase, grassBlade,
+            backMountain, frontMountainLeft, frontMountainRight,
+            sun, birds,
+            treeBase, treeLeaves,
+            cloud1, cloud2, cloud3;
+
+        //INIT()
+        function init() {
+            //init scene and set sky color
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x6495ed);
+
+            //init perspective camera and dimensions
+            camera = new THREE.PerspectiveCamera(75, sceneWidth / sceneHeight, 1, 1000);
+            camera.position.z = 100;
+
+            //init renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(sceneWidth, sceneHeight);
+            document.body.appendChild(renderer.domElement);
+
+            //INIT ALL ELEMENTS
+            backMountain();
+            sun();
+            clouds();
+            frontMountainLeft();
+            frontMountainRight();
+            grass();
+            tree();
+            birds();
+
+            //ANIMATIONS
+            animateBirds();
+            animateClouds();
+        }
+
+        //BACK_MOUNTAIN()
+        function backMountain() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array([
+                -60, -45, 0, // v0
+                60, -45, 0, // v1
+                0, 40, 0  // v2
+            ]);
+
+            const indices = [0, 1, 2];
+
+            geometry.setIndex(indices);
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+            const material = new THREE.MeshBasicMaterial({ color: randColorGenerator() });
+            backMountain = new THREE.Mesh(geometry, material);
+
+            backMountain.position.y -= 10;
+            scene.add(backMountain);
+        }
+
+        //FRONT_MOUNTAIN_LEFT()
+        function frontMountainLeft() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array([
+                -100, -45, 0, // v0
+                0, -45, 0, // v1
+                -50, 25, 0  // v2
+            ]);
+
+            const indices = [0, 1, 2];
+
+            geometry.setIndex(indices);
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+            const material = new THREE.MeshBasicMaterial({ color: randColorGenerator() });
+            frontMountainLeft = new THREE.Mesh(geometry, material);
+            frontMountainLeft.position.y -= 10;
+
+            scene.add(frontMountainLeft);
+        }
+
+        //FRONT_MOUNTAIN_RIGHT()
+        function frontMountainRight() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = new Float32Array([
+                0, -45, 0, // v0
+                100, -45, 0, // v1
+                50, 25, 0  // v2
+            ]);
+
+            const indices = [0, 1, 2];
+
+            geometry.setIndex(indices);
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+            const material = new THREE.MeshBasicMaterial({ color: randColorGenerator() });
+            frontMountainRight = new THREE.Mesh(geometry, material);
+            frontMountainRight.position.y -= 10;
+
+            scene.add(frontMountainRight);
+        }
+
+        //GRASS()
+        function grass() {
+            //base
+            const geometryBase = new THREE.PlaneGeometry(500, 50);
+            const materialBase = new THREE.MeshBasicMaterial({ color: 0x47944f, side: THREE.DoubleSide });
+            grassBase = new THREE.Mesh(geometryBase, materialBase);
+            grassBase.position.y = -70;
+            scene.add(grassBase);
+
+            //blades
+            grassBlade = new THREE.Group();
+            for (let i = -90; i < 150; i++) {
+                const geometryBlade = new THREE.PlaneGeometry(0.7, 4);
+                const materialBlade = new THREE.MeshBasicMaterial({ color: 0x47944f, side: THREE.DoubleSide });
+                blade = new THREE.Mesh(geometryBlade, materialBlade);
+
+                blade.position.x = i;
+                blade.position.y = -45;
+                grassBlade.add(blade);
+            }
+            scene.add(grassBlade);
+        }
+
+        //TREE
+        function tree() {
+            //base
+            const geometryBase = new THREE.PlaneGeometry(3, 25);
+            const materialBase = new THREE.MeshBasicMaterial({ color: 0xf7f3e9, side: THREE.DoubleSide });
+            treeBase = new THREE.Mesh(geometryBase, materialBase);
+            treeBase.position.x = -40;
+            treeBase.position.y = -45;
+            scene.add(treeBase);
+
+            //leaves
+            const curve = new THREE.EllipseCurve(
+                0, 0,            // ax, aY
+                7, 12,            // xRadius, yRadius
+                0, 2 * Math.PI,  // aStartAngle, aEndAngle
+                false,            // aClockwise
+                0                 // aRotation
+            );
+
+            const points = curve.getPoints(50);
+            const segments = 64;
+
+            const geometryLeaves = new THREE.BufferGeometry().setFromPoints(points);
+            const materialLeaves = new THREE.MeshBasicMaterial({ color: 0x3f6b38, side: THREE.DoubleSide });
+
+            const indices = [];
+            for (let i = 1; i <= segments; i++) {
+                indices.push(0, i, i === segments ? 1 : i + 1);
+            }
+
+            geometryLeaves.setIndex(indices);
+
+            treeLeaves = new THREE.Mesh(geometryLeaves, materialLeaves);
+
+            treeLeaves.position.x = -40;
+            treeLeaves.position.y = -40;
+
+            scene.add(treeLeaves);
+        }
+
+        //SUN
+        function sun() {
+            const geometry = new THREE.CircleGeometry(8, 32);
+            const material = new THREE.MeshBasicMaterial({ color: 0xf0de6c });
+            sun = new THREE.Mesh(geometry, material);
+            sun.position.x = 30;
+            sun.position.y = 30;
+
+            scene.add(sun);
+        }
+
+        //BIRDS
+        function birds() {
+            //make birds into group so that we can animate it easier
+            birds = new THREE.Group();
+
+            //create five birds
+            for (let i = -2; i <= 2; i++) {
+                //create left and right wing shapes
+                const geometryRight = new THREE.PlaneGeometry(1, 5);
+                const geometryLeft = new THREE.PlaneGeometry(1, 5);
+                const material = new THREE.MeshBasicMaterial({ color: 0x282045, side: THREE.DoubleSide });
+                const birdShapeRight = new THREE.Mesh(geometryRight.rotateZ(2.1), material); //rotate each rectangle
+                const birdShapeLeft = new THREE.Mesh(geometryLeft.rotateZ(-2.1), material);
+
+                //change position based on iteration
+                birdShapeRight.position.x = 2 + i * 9; //add 2 to move right
+                birdShapeRight.position.y = 30 - Math.abs(i * 5); //use abs to create v
+                birdShapeLeft.position.x = -2 + i * 9; //subtract 2 to move left
+                birdShapeLeft.position.y = 30 - Math.abs(i * 5); //use abs to create v
+
+                //add both sides of each bird to the group
+                birds.add(birdShapeRight);
+                birds.add(birdShapeLeft);
+            }
+            //add birds into scene
+            scene.add(birds);
+        }
+
+        //CLOUDS()
+        function clouds() {
+            //make clouds into groups so that they can each be animated
+            cloud1 = new THREE.Group();
+            cloud2 = new THREE.Group();
+            cloud3 = new THREE.Group();
+
+            //they all share the same material
+            const material = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+
+            //add all puffs to cloud groups
+
+            //cloud1
+            for (let i = -2; i <= 2; i++) {
+                const geometry = new THREE.CircleGeometry(4, 32);
+                puff1 = new THREE.Mesh(geometry, material);
+
+                //change position based on iteration
+                puff1.position.x = 2 + i * 4; //add 2 to move right
+                puff1.position.y = 30 - Math.abs(i * 2); //use abs to create v
+
+                cloud1.add(puff1);
+            }
+
+            //cloud2
+            for (let i = -2; i <= 2; i++) {
+                const geometry = new THREE.CircleGeometry(7, 48);
+                puff2 = new THREE.Mesh(geometry, material);
+
+                //change position based on iteration
+                puff2.position.x = 2 + i * 7; //add 2 to move right
+                puff2.position.y = 30 - Math.abs(i * 4); //use abs to create v
+
+                cloud2.add(puff2);
+            }
+
+            //cloud3
+            for (let i = -2; i <= 2; i++) {
+                const geometry = new THREE.CircleGeometry(6, 48);
+                puff3 = new THREE.Mesh(geometry, material);
+
+                //change position based on iteration
+                puff3.position.x = 2 + i * 6; //add 2 to move right
+                puff3.position.y = 30 - Math.abs(i * 3); //use abs to create v
+
+                cloud3.add(puff3);
+            }
+
+            //fill in bases of clouds
+
+            //cloud 1 base
+            const geometry1 = new THREE.PlaneGeometry(18, 8);
+            cloudBase1 = new THREE.Mesh(geometry1, material);
+            cloudBase1.position.x = 2;
+            cloudBase1.position.y = 26;
+            cloud1.add(cloudBase1);
+
+            //cloud 2 base
+            const geometry2 = new THREE.PlaneGeometry(25, 10);
+            cloudBase2 = new THREE.Mesh(geometry2, material);
+            cloudBase2.position.x = 2;
+            cloudBase2.position.y = 20;
+            cloud2.add(cloudBase2);
+
+            //cloud 3 base
+            const geometry3 = new THREE.PlaneGeometry(22, 8);
+            cloudBase3 = new THREE.Mesh(geometry3, material);
+            cloudBase3.position.x = 2;
+            cloudBase3.position.y = 22;
+            cloud3.add(cloudBase3);
+
+            //set starting positions
+            cloud1.position.x = 20;
+            cloud1.position.y = 28;
+
+            cloud2.position.x = -45;
+            cloud2.position.y = 10;
+
+            cloud3.position.x = 50;
+            cloud3.position.y = -12;
+
+            //add clouds into scene
+            scene.add(cloud1);
+            scene.add(cloud2);
+            scene.add(cloud3);
+        }
+
+        //ANIMATE_BIRDS()
+        function animateBirds() {
+            //set speed and parameters
+            const speed = 0.4;
+            const limit = 80;
+
+            //move birds
+            birds.position.x += speed;
+            birds.position.y += speed;
+
+            //reset once they have moved offscreen
+            if (birds.position.x > limit) {
+                birds.position.x = -100
+            }
+
+            if (birds.position.y > limit) {
+                birds.position.y = -100
+            }
+
+            //animate
+            requestAnimationFrame(animateBirds);
+            renderer.render(scene, camera);
+        }
+
+        //ANIMATE_CLOUD()
+        function animateClouds() {
+            //set speeds and limit
+            const limit = 100;
+            const speed1 = 0.03;
+            const speed2 = 0.1;
+            const speed3 = 0.06;
+
+            //move clouds
+            cloud1.position.x += speed1;
+            cloud2.position.x += speed2;
+            cloud3.position.x += speed3;
+
+            //reset once they have moved offscreen
+            if (cloud1.position.x > limit - 10) {
+                cloud1.position.x = -90
+            }
+            if (cloud2.position.x > limit) {
+                cloud2.position.x = -100
+            }
+            if (cloud3.position.x > limit) {
+                cloud3.position.x = -100
+            }
+
+            //animate
+            requestAnimationFrame(animateClouds);
+            renderer.render(scene, camera);
+        }
+
+        //RAND_COLOR_GENERATOR()
+        //@returns color value (rgb)
+        function randColorGenerator() {
+            var r, g, b, randColor;
+
+            r = Math.floor(Math.random() * 256).toString();
+            g = Math.floor(Math.random() * 256).toString();
+            b = Math.floor(Math.random() * 256).toString();
+
+            randColor = "rgb(" + r + ", " + g + ", " + b + ")";
+            return randColor;
+        }
+
+        //CLONE_POSITIONS
+        function clonePositions() {
+            origPositions = {
+                frontMountainLeft: frontMountainLeft.position.clone(),
+                frontMountainRight: frontMountainRight.position.clone(),
+                backMountain: backMountain.position.clone(),
+                grassBase: grassBase.position.clone(),
+                grassBlade: grassBlade.position.clone(),
+                treeBase: treeBase.position.clone(),
+                treeLeaves: treeLeaves.position.clone(),
+                sun: sun.position.clone()
+            };
+        }
+
+        //MOTION_PARALLAX_BUTTON()
+        function motionParallaxButtonPressed(e) {
+            if (e)
+            {}
+        }
+
+        //MOTION_PARALLAX
+        //@params e = event being passed
+        function motionParallax(e) {
+            //layer factor constants
+            const layer1 = 1, layer2 = 2, layer3 = 4, layer4 = 8;
+
+            //event
+            if (e) {
+                //init mouse coords
+                var mouseX, mouseY;
+
+                //scale for negative coordinates
+                mouseX = (e.clientX - 250) / window.innerWidth;
+                mouseY = (e.clientY - 250) / window.innerHeight;
+
+                //layer 1
+                sun.position.x = origPositions.sun.x + mouseX * parallaxFactor * layer1;
+                sun.position.y = origPositions.sun.y + mouseY * parallaxFactor * layer1;
+
+                //layer 2
+                backMountain.position.x = origPositions.backMountain.x + mouseX * parallaxFactor * layer2;
+                backMountain.position.y = origPositions.backMountain.y + mouseY * parallaxFactor * layer2;
+
+                //layer 3
+                frontMountainLeft.position.x = origPositions.frontMountainLeft.x + mouseX * parallaxFactor * layer3;
+                frontMountainRight.position.x = origPositions.frontMountainRight.x + mouseX * parallaxFactor * layer3;
+
+                frontMountainLeft.position.y = origPositions.frontMountainLeft.y + mouseY * parallaxFactor * layer3;
+                frontMountainRight.position.y = origPositions.frontMountainRight.y + mouseY * parallaxFactor * layer3;
+
+                //layer 4
+                grassBase.position.x = origPositions.grassBase.x + mouseX * parallaxFactor * layer4;
+                grassBlade.position.x = origPositions.grassBlade.x + mouseX * parallaxFactor * layer4;
+                treeBase.position.x = origPositions.treeBase.x + mouseX * parallaxFactor * layer4;
+                treeLeaves.position.x = origPositions.treeLeaves.x + mouseX * parallaxFactor * layer4;
+
+                grassBase.position.y = origPositions.grassBase.y + mouseY * parallaxFactor * layer4;
+                grassBlade.position.y = origPositions.grassBlade.y + mouseY * parallaxFactor * layer4;
+                treeBase.position.y = origPositions.treeBase.y + mouseY * parallaxFactor * layer4;
+                treeLeaves.position.y = origPositions.treeLeaves.y + mouseY * parallaxFactor * layer4;
+
+                renderer.render(scene, camera);
+            }
+            //note: birds and clouds are not included in motion parallax as they move too quickly to look smooth
+        }
+
+        //RENDER()
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        //METHOD CALLS
+        init();
+        clonePositions();
+        render();
+        window.addEventListener('mousemove', motionParallax);
+    </script>
+
+    <!--rain effect based on Sylvain Saurel's code at https://www.youtube.com/watch?v=ni2Sm_j-PjU -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+    <body onmousedown="createRain()"></body>
+    <section id="rain" class="rain"></section>
+    <script>
+        //RAND_RANGE
+        function randRange(maxNum, minNum) {
+            return (Math.floor(Math.random(10) * (maxNum - minNum + 1)) + minNum);
+        }
+
+        //CREATE_RAIN
+        function createRain() {
+            var numDrops = 100;
+            for (i = 0; i < numDrops; i++) {
+                var dropLeft = randRange(0, 500);
+                var dropTop = randRange(-1000, 1000);
+                $('.rain').append('<div class="drop" id="drop' + i + '"></div>');
+                $('#drop' + i).css('left', dropLeft);
+                $('#drop' + i).css('top', dropTop);
+            }
+        }
+    </script>
+
+    <head>
+        <style>
+            html {
+                height: 10px;
+                width: 10px
+            }
+
+            .drop {
+                background: #bec4ef;
+                width: 1px;
+                height: 30px;
+                position: absolute;
+                animation: fall 1s linear infinite;
+            }
+
+            @keyframes fall {
+                to {
+                    margin-top: 900px;
+                }
+            }
+        </style>
+    </head>
+    <!--end rain effect-->
+
+</body>
+
+</html>
